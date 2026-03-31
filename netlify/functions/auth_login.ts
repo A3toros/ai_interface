@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { neon } from "@neondatabase/serverless";
 import * as jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { corsJson } from "./_auth";
 
 type Body = { username: string; password: string };
@@ -33,17 +34,21 @@ export const handler: Handler = async (event) => {
     return { statusCode: 400, headers: corsJson, body: JSON.stringify({ error: "username and password required" }) };
 
   const sql = neon(dbUrl);
+  // Fetch by username only; verify with bcryptjs so hashes from PostgreSQL crypt(gen_salt('bf')) match reliably.
   const rows = await sql`
-    SELECT id, username, email, role
+    SELECT id, username, email, role, password_hash
     FROM ai_interface_users
     WHERE username = ${username}
-      AND password_hash = crypt(${password}, password_hash)
     LIMIT 1
   `;
   if (!rows?.length)
     return { statusCode: 401, headers: corsJson, body: JSON.stringify({ error: "Invalid credentials" }) };
 
   const u = rows[0] as any;
+  const hash = String(u.password_hash || "");
+  const ok = bcrypt.compareSync(password, hash);
+  if (!ok)
+    return { statusCode: 401, headers: corsJson, body: JSON.stringify({ error: "Invalid credentials" }) };
   const token = jwt.sign(
     { userId: u.id, role: u.role, username: u.username, email: u.email },
     jwtSecret,
