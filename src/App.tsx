@@ -138,6 +138,8 @@ function AppAuthed() {
 
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [feedbackSentFor, setFeedbackSentFor] = useState<string | null>(null);
+  const [feedbackTrueLabel, setFeedbackTrueLabel] = useState<"human" | "ai" | "mt" | "">("");
+  const [feedbackComment, setFeedbackComment] = useState("");
 
   const nonHumanMass = useMemo(() => {
     if (!result) return 0;
@@ -150,6 +152,8 @@ function AppAuthed() {
     setResult(null);
     setRaw(null);
     setFeedbackSentFor(null);
+    setFeedbackTrueLabel("");
+    setFeedbackComment("");
 
     const request_id = uuidv4();
     setCurrentRequestId(request_id);
@@ -173,10 +177,21 @@ function AppAuthed() {
   async function onFeedback(verdict: "correct" | "incorrect" | "unsure") {
     if (!currentRequestId) return;
     if (!result) return;
+
+    if (verdict === "incorrect" && !feedbackTrueLabel) {
+      setError("When marking Incorrect, please select the true label (human / ai / mt).");
+      return;
+    }
+
     setFeedbackBusy(true);
     setError(null);
     try {
-      await submitFeedback({ request_id: currentRequestId, verdict });
+      await submitFeedback({
+        request_id: currentRequestId,
+        verdict,
+        true_label: verdict === "incorrect" ? (feedbackTrueLabel as "human" | "ai" | "mt") : null,
+        comment: feedbackComment.trim() ? feedbackComment.trim() : null,
+      });
       setFeedbackSentFor(currentRequestId);
     } catch (e: any) {
       setError(String(e?.message || e));
@@ -326,6 +341,33 @@ function AppAuthed() {
                         Click once. This updates the same row (same{" "}
                         <code className="rounded bg-slate-100 px-1.5 py-0.5">request_id</code>). Next analysis creates a new
                         row.
+                      </div>
+
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <label className="block">
+                          <div className="text-xs font-semibold text-slate-700">True label (required if Incorrect)</div>
+                          <select
+                            value={feedbackTrueLabel}
+                            onChange={(e) => setFeedbackTrueLabel(e.target.value as any)}
+                            disabled={feedbackBusy || feedbackSentFor === currentRequestId}
+                            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 disabled:opacity-60"
+                          >
+                            <option value="">(select)</option>
+                            <option value="human">human</option>
+                            <option value="ai">ai</option>
+                            <option value="mt">mt</option>
+                          </select>
+                        </label>
+                        <label className="block">
+                          <div className="text-xs font-semibold text-slate-700">Comment (optional)</div>
+                          <input
+                            value={feedbackComment}
+                            onChange={(e) => setFeedbackComment(e.target.value)}
+                            disabled={feedbackBusy || feedbackSentFor === currentRequestId}
+                            placeholder="Why was it wrong? Any notes…"
+                            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 disabled:opacity-60"
+                          />
+                        </label>
                       </div>
 
                       {feedbackSentFor === currentRequestId ? (
