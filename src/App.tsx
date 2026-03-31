@@ -246,7 +246,7 @@ function AppAuthed() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Paste text here…"
-                className="mt-3 w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                className="mt-3 min-h-[400px] w-full resize-y rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
               />
 
               {currentRequestId ? (
@@ -266,7 +266,7 @@ function AppAuthed() {
             <div className="rounded-3xl border border-slate-200/60 bg-white/70 p-6 shadow-glow backdrop-blur">
               <h2 className="text-sm font-bold text-slate-900">Result</h2>
               {!result ? (
-                <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                <div className="mt-3 min-h-[600px] rounded-2xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
                   Run an analysis to see probabilities and decision gates.
                 </div>
               ) : (
@@ -362,7 +362,7 @@ function AppAuthed() {
 
                   <details className="rounded-2xl border border-slate-200 bg-white p-4">
                     <summary className="cursor-pointer text-sm font-semibold text-slate-800">Raw</summary>
-                    <pre className="mt-3 whitespace-pre-wrap text-xs text-slate-800">
+                    <pre className="mt-3 max-h-[520px] overflow-auto whitespace-pre-wrap text-xs text-slate-800">
                       {JSON.stringify(raw ?? result, null, 2)}
                     </pre>
                   </details>

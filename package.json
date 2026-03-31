@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gradio/client": "^2.1.0",
     "@neondatabase/serverless": "^0.10.0",
     "@netlify/functions": "^2.8.0",
     "bcryptjs": "^3.0.3",

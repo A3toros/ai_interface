@@ -16,9 +16,9 @@ create table if not exists ai_interface_users (
 alter table ai_interface_users add column if not exists email text;
 create unique index if not exists ai_interface_users_email_uq on ai_interface_users (email) where email is not null;
 
--- Seed: admin (password + email — rotate password in production via UPDATE)
+-- Seed: admin (set a temporary password, then rotate immediately)
 insert into ai_interface_users (username, email, password_hash, role)
-values ('admin', 'aetoros@gmail.com', crypt('Catmin_465', gen_salt('bf')), 'admin')
+values ('admin', 'aetoros@gmail.com', crypt('CHANGE_ME_NOW', gen_salt('bf')), 'admin')
 on conflict (username) do update set
   email = excluded.email,
   password_hash = excluded.password_hash,
