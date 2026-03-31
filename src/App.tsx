@@ -138,7 +138,7 @@ function AppAuthed() {
 
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [feedbackSentFor, setFeedbackSentFor] = useState<string | null>(null);
-  const [feedbackTrueLabel, setFeedbackTrueLabel] = useState<"human" | "ai" | "mt" | "">("");
+  const [feedbackTrueLabel, setFeedbackTrueLabel] = useState<"human" | "ai" | "mt" | "ai_mimic_human" | "">("");
   const [feedbackComment, setFeedbackComment] = useState("");
 
   const nonHumanMass = useMemo(() => {
@@ -179,7 +179,7 @@ function AppAuthed() {
     if (!result) return;
 
     if (verdict === "incorrect" && !feedbackTrueLabel) {
-      setError("When marking Incorrect, please select the true label (human / ai / mt).");
+      setError("When marking Incorrect, please select the true label (human / ai / mt / ai mimicking human).");
       return;
     }
 
@@ -189,7 +189,10 @@ function AppAuthed() {
       await submitFeedback({
         request_id: currentRequestId,
         verdict,
-        true_label: verdict === "incorrect" ? (feedbackTrueLabel as "human" | "ai" | "mt") : null,
+        true_label:
+          verdict === "incorrect"
+            ? (feedbackTrueLabel as "human" | "ai" | "mt" | "ai_mimic_human")
+            : null,
         comment: feedbackComment.trim() ? feedbackComment.trim() : null,
       });
       setFeedbackSentFor(currentRequestId);
@@ -356,6 +359,7 @@ function AppAuthed() {
                             <option value="human">human</option>
                             <option value="ai">ai</option>
                             <option value="mt">mt</option>
+                            <option value="ai_mimic_human">ai mimicking human</option>
                           </select>
                         </label>
                         <label className="block">

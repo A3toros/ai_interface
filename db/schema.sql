@@ -58,7 +58,7 @@ create table if not exists inference_log (
 
   -- Single-teacher review (latest/only)
   teacher_verdict text null check (teacher_verdict in ('correct', 'incorrect', 'unsure')),
-  teacher_true_label text null check (teacher_true_label in ('human', 'ai', 'mt')),
+  teacher_true_label text null check (teacher_true_label in ('human', 'ai', 'mt', 'ai_mimic_human')),
   teacher_comment text null,
   teacher_user_id text null,
   teacher_reviewed_at timestamptz null

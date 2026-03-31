@@ -57,7 +57,7 @@ export async function authLogin(params: { username: string; password: string }):
 export async function submitFeedback(params: {
   request_id: string;
   verdict: "correct" | "incorrect" | "unsure";
-  true_label?: "human" | "ai" | "mt" | null;
+  true_label?: "human" | "ai" | "mt" | "ai_mimic_human" | null;
   comment?: string | null;
 }): Promise<{ ok: true }> {
   const r = await fetch("/api/submit_feedback", {

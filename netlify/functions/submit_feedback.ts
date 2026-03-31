@@ -5,7 +5,7 @@ import { corsJson, requireAuth } from "./_auth";
 type Body = {
   request_id: string;
   verdict: "correct" | "incorrect" | "unsure";
-  true_label?: "human" | "ai" | "mt" | null;
+  true_label?: "human" | "ai" | "mt" | "ai_mimic_human" | null;
   comment?: string | null;
 };
 
