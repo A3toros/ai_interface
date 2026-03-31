@@ -11,7 +11,7 @@ Goal: a simple web app for reviewing AI-detector outputs, storing them in Neon, 
 
 ### Data model (Neon)
 
-Two tables are enough to start.
+Single table (inferences + teacher review) for easy analysis.
 
 #### `inference_log`
 
@@ -31,15 +31,13 @@ One row per model run.
 - `text_hash` (text, nullable) — optional privacy-preserving linkage (no raw text by default)
 - `notes` (text, nullable)
 
-#### `teacher_feedback`
+Teacher review fields live on `inference_log`:
 
-One row per teacher verdict (can start 1:1 with `request_id`).
-
-- `request_id` (text, references `inference_log(request_id)`)
-- `created_at` (timestamptz, default now())
-- `verdict` (text) — `"correct" | "incorrect" | "unsure"`
-- `true_label` (text, nullable) — `"human" | "ai" | "mt"` (optional)
-- `comment` (text, nullable)
+- `teacher_verdict` — `"correct" | "incorrect" | "unsure"`
+- `teacher_true_label` — `"human" | "ai" | "mt"` (optional)
+- `teacher_comment` (optional)
+- `teacher_user_id` (who reviewed)
+- `teacher_reviewed_at` (when reviewed)
 
 ### API surface (Netlify Functions)
 
@@ -51,10 +49,10 @@ All DB access must be server-side; the browser never sees `NEON_DATABASE_URL`.
 
 - **`POST /.netlify/functions/submit_feedback`**
   - body: `{ request_id, verdict, true_label?, comment? }`
-  - action: insert/update `teacher_feedback`
+  - action: update `inference_log.teacher_*`
 
 - **`GET /.netlify/functions/list_inferences?limit=50&offset=0&filter=...`**
-  - action: list recent inferences for UI table (join feedback if present)
+  - action: list recent inferences for UI table
 
 ### UI (Vite + TS)
 

@@ -22,11 +22,14 @@ export const handler: Handler = async (event) => {
     SELECT
       l.request_id, l.created_at, l.source, l.mode, l.accept, l.pred_label,
       l.p_human, l.p_ai, l.p_mt, l.risk, l.teacher_uncertainty,
-      f.verdict, f.true_label, f.comment
+      l.teacher_verdict as verdict,
+      l.teacher_true_label as true_label,
+      l.teacher_comment as comment,
+      l.teacher_reviewed_at,
+      l.teacher_user_id
     FROM inference_log l
-    LEFT JOIN teacher_feedback f ON f.request_id = l.request_id
     WHERE l.user_id = ${auth.user.id}
-      AND (${onlyNeedsReview}::boolean = false OR (f.request_id IS NULL OR f.verdict = 'unsure'))
+      AND (${onlyNeedsReview}::boolean = false OR (l.teacher_verdict IS NULL OR l.teacher_verdict = 'unsure'))
     ORDER BY l.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;

@@ -32,15 +32,22 @@ export const handler: Handler = async (event) => {
   if (!requestId) return { statusCode: 400, headers: corsJson, body: JSON.stringify({ error: "request_id required" }) };
   if (!verdict) return { statusCode: 400, headers: corsJson, body: JSON.stringify({ error: "verdict required" }) };
 
-  await sql`
-    INSERT INTO teacher_feedback (request_id, user_id, verdict, true_label, comment)
-    VALUES (${requestId}, ${auth.user.id}, ${verdict}, ${body.true_label || null}, ${body.comment || null})
-    ON CONFLICT (request_id) DO UPDATE SET
-      verdict = EXCLUDED.verdict,
-      true_label = EXCLUDED.true_label,
-      comment = EXCLUDED.comment,
-      created_at = now()
+  const updated = await sql`
+    UPDATE inference_log
+    SET
+      teacher_verdict = ${verdict},
+      teacher_true_label = ${body.true_label || null},
+      teacher_comment = ${body.comment || null},
+      teacher_user_id = ${auth.user.id},
+      teacher_reviewed_at = now()
+    WHERE request_id = ${requestId}
+      AND user_id = ${auth.user.id}
+    RETURNING request_id
   `;
+
+  if (!updated || updated.length === 0) {
+    return { statusCode: 404, headers: corsJson, body: JSON.stringify({ error: "request_id not found" }) };
+  }
 
   return { statusCode: 200, headers: corsJson, body: JSON.stringify({ ok: true }) };
 };

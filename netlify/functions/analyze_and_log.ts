@@ -2,6 +2,7 @@ import type { Handler } from "@netlify/functions";
 import { neon } from "@neondatabase/serverless";
 import { corsJson, requireAuth } from "./_auth";
 import { Client } from "@gradio/client";
+import { createHash } from "crypto";
 
 type AnalyseRequest = {
   request_id: string;
@@ -11,6 +12,10 @@ type AnalyseRequest = {
   model_ref?: string;
   text_hash?: string;
 };
+
+function sha256HexUtf8(s: string): string {
+  return createHash("sha256").update(s, "utf8").digest("hex");
+}
 
 async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms));
@@ -162,6 +167,11 @@ export const handler: Handler = async (event) => {
     if (!requestId) return { statusCode: 400, headers: corsJson, body: JSON.stringify({ error: "request_id required" }) };
     if (!text) return { statusCode: 400, headers: corsJson, body: JSON.stringify({ error: "text required" }) };
 
+    const textHash =
+      (body.text_hash || "").trim() ||
+      // Always persist a stable identifier for training/review workflows.
+      sha256HexUtf8(text);
+
     const configuredApiName = normalizeApiName(process.env.AI_DETECTOR_GRADIO_API_NAME || "/predict_json");
     const target = spaceId || hfBase;
     const candidates = Array.from(
@@ -237,8 +247,8 @@ export const handler: Handler = async (event) => {
       // Store raw only if we can't parse; still keep request_id for audit.
       const sql = neon(dbUrl);
       await sql`
-        INSERT INTO inference_log (request_id, user_id, source, mode, accept, pred_label, p_human, p_ai, p_mt, raw_json)
-        VALUES (${requestId}, ${auth.user.id}, ${body.source || "ai_interface"}, ${body.mode || null}, ${false}, ${"unknown"}, ${0}, ${0}, ${0}, ${JSON.stringify({ hf, rawResult })}::jsonb)
+        INSERT INTO inference_log (request_id, user_id, source, mode, text, accept, pred_label, p_human, p_ai, p_mt, model_ref, text_hash, raw_json)
+        VALUES (${requestId}, ${auth.user.id}, ${body.source || "ai_interface"}, ${body.mode || null}, ${text}, ${false}, ${"unknown"}, ${0}, ${0}, ${0}, ${body.model_ref || null}, ${textHash}, ${JSON.stringify({ hf, rawResult })}::jsonb)
         ON CONFLICT (request_id) DO UPDATE SET raw_json = EXCLUDED.raw_json
       `;
       return {
@@ -251,20 +261,21 @@ export const handler: Handler = async (event) => {
     const sql = neon(dbUrl);
     await sql`
       INSERT INTO inference_log (
-        request_id, user_id, source, mode,
+        request_id, user_id, source, mode, text,
         accept, pred_label, p_human, p_ai, p_mt,
         risk, teacher_uncertainty, margin_top1_top2,
         tau_risk, tau_unc, critic_margin,
         model_ref, text_hash, raw_json
       )
       VALUES (
-        ${requestId}, ${auth.user.id}, ${body.source || "ai_interface"}, ${body.mode || null},
+        ${requestId}, ${auth.user.id}, ${body.source || "ai_interface"}, ${body.mode || null}, ${text},
         ${parsed.accept}, ${parsed.pred_label}, ${parsed.p_human}, ${parsed.p_ai}, ${parsed.p_mt},
         ${parsed.risk}, ${parsed.teacher_uncertainty}, ${parsed.margin_top1_top2},
         ${parsed.tau_risk}, ${parsed.tau_unc}, ${parsed.critic_margin},
-        ${body.model_ref || null}, ${body.text_hash || null}, ${JSON.stringify(rawResult)}::jsonb
+        ${body.model_ref || null}, ${textHash}, ${JSON.stringify(rawResult)}::jsonb
       )
       ON CONFLICT (request_id) DO UPDATE SET
+        text = EXCLUDED.text,
         accept = EXCLUDED.accept,
         pred_label = EXCLUDED.pred_label,
         p_human = EXCLUDED.p_human,

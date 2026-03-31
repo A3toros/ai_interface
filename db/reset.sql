@@ -1,12 +1,17 @@
--- ai_interface: Neon schema (v2 logging + feedback)
+-- ai_interface: RESET ALL TABLES (DESTRUCTIVE)
+-- This script drops and recreates the schema for local/dev.
+-- WARNING: This deletes all user accounts, inference logs, and reviews.
 
--- Password hashing helpers
+begin;
+
+drop table if exists inference_log cascade;
+drop table if exists teacher_feedback cascade;
+drop table if exists ai_interface_users cascade;
+
 create extension if not exists pgcrypto;
 
--- =========
 -- USERS
--- =========
-create table if not exists ai_interface_users (
+create table ai_interface_users (
   id text primary key default gen_random_uuid()::text,
   created_at timestamptz not null default now(),
   username text not null unique,
@@ -15,22 +20,15 @@ create table if not exists ai_interface_users (
   role text not null default 'admin' check (role in ('admin', 'reviewer'))
 );
 
--- Existing DBs from before email column: add column (idempotent)
 alter table ai_interface_users add column if not exists email text;
 create unique index if not exists ai_interface_users_email_uq on ai_interface_users (email) where email is not null;
 
 -- Seed: admin (set a temporary password, then rotate immediately)
 insert into ai_interface_users (username, email, password_hash, role)
-values ('admin', 'aetoros@gmail.com', crypt('CHANGE_ME_NOW', gen_salt('bf')), 'admin')
-on conflict (username) do update set
-  email = excluded.email,
-  password_hash = excluded.password_hash,
-  role = excluded.role;
+values ('admin', 'aetoros@gmail.com', crypt('CHANGE_ME_NOW', gen_salt('bf')), 'admin');
 
--- =========
--- INFERENCES (+ teacher review in same row)
--- =========
-create table if not exists inference_log (
+-- INFERENCES (includes teacher review)
+create table inference_log (
   request_id text primary key,
   created_at timestamptz not null default now(),
   user_id text null,
@@ -56,7 +54,6 @@ create table if not exists inference_log (
   text_hash text null,
   raw_json jsonb not null,
 
-  -- Single-teacher review (latest/only)
   teacher_verdict text null check (teacher_verdict in ('correct', 'incorrect', 'unsure')),
   teacher_true_label text null check (teacher_true_label in ('human', 'ai', 'mt')),
   teacher_comment text null,
@@ -64,17 +61,9 @@ create table if not exists inference_log (
   teacher_reviewed_at timestamptz null
 );
 
-create index if not exists inference_log_created_at_idx on inference_log (created_at desc);
-create index if not exists inference_log_user_id_idx on inference_log (user_id);
-create index if not exists inference_log_teacher_verdict_idx on inference_log (teacher_verdict);
+create index inference_log_created_at_idx on inference_log (created_at desc);
+create index inference_log_user_id_idx on inference_log (user_id);
+create index inference_log_teacher_verdict_idx on inference_log (teacher_verdict);
 
--- Existing DBs from before text column: add column (idempotent)
-alter table inference_log add column if not exists text text;
-
--- Existing DBs from before teacher columns: add columns (idempotent)
-alter table inference_log add column if not exists teacher_verdict text;
-alter table inference_log add column if not exists teacher_true_label text;
-alter table inference_log add column if not exists teacher_comment text;
-alter table inference_log add column if not exists teacher_user_id text;
-alter table inference_log add column if not exists teacher_reviewed_at timestamptz;
+commit;
 
